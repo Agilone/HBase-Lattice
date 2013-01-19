@@ -35,7 +35,6 @@ import com.inadco.hbl.api.AggregateFunctionRegistry;
 import com.inadco.hbl.api.Cube;
 import com.inadco.hbl.api.Cuboid;
 import com.inadco.hbl.api.Dimension;
-import com.inadco.hbl.api.Measure;
 import com.inadco.hbl.api.Range;
 import com.inadco.hbl.client.AggregateQuery;
 import com.inadco.hbl.client.AggregateResultSet;
@@ -170,26 +169,12 @@ public class AggregateQueryImpl implements AggregateQuery {
                 groupKeyLen = curKeyLen;
         }
 
-        // for (int i = 0; i < numGroupKeys; i++) {
-        // Dimension dim = cuboid.getCuboidDimensions().get(i);
-        // dimName2GroupKeyOffsetMap.put(dim.getName(), groupKeyLen);
-        // groupKeyLen += dim.getKeyLen();
-        // }
-
         byte[][] measureQualifiers = new byte[measures.size()][];
         int mCnt = 0;
         for (String mName : measures) {
             measureName2indexMap.put(mName, mCnt);
             measureQualifiers[mCnt++] = Bytes.toBytes(mName);
         }
-
-//        Measure[] measuresArr = new Measure[measures.size()];
-//
-//        int i = 0;
-//        Map<String, ? extends Measure> measureMap = cube.getMeasures();
-//        // we already validated measure names are valid during add()
-//        for (String measure : measures)
-//            measuresArr[i++] = measureMap.get(measure);
 
         generateScanSpecs(cuboid, scanSpecs, partialSpec, 0, groupKeyLen, SliceOperation.ADD, measureQualifiers);
 
