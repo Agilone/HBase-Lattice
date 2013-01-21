@@ -204,15 +204,10 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 
 	@Override
 	public boolean hasNext() throws IOException {
-		if(compositeScanComparator.getComparators().size() > 0) {
-			if((currentIndex+1) >= Math.min(maxResultRows, rsrt.size())) {
-				return false;
-			}
-		} else {
-			if((currentIndex+1) >= maxResultRows) {
-				return false;
-			}
+		if((currentIndex+1) >= maxResultRows) {
+			return false;
 		}
+		
 
 		if (next != null)
 			return true;
