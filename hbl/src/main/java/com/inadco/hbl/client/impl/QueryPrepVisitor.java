@@ -106,5 +106,24 @@ public class QueryPrepVisitor implements QueryVisitor {
     public void visitCube(String cubeName) throws HblException {
         query.setCube(cubeName);
     }
+    
+    @Override
+	public void visitOrderBy(String dimension, String order) {
+    	order = order == null ? "asc" : order;
+    	query.addOrderBy(dimension,order.equalsIgnoreCase("asc"));
+    	
+    }
+    
+    @Override
+	public void visitOrderByMeasure(String func, String measure, String order) {
+    	order = order == null ? "asc" : order;
+    	query.addOrderByMeasure(func, measure,order.equalsIgnoreCase("asc"));
+		
+	}
+
+    @Override
+	public void visitLimit(Object limit) {
+		query.addLimit(Integer.parseInt(limit+""));
+	}
 
 }

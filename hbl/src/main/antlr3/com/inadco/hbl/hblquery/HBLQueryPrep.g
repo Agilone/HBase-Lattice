@@ -96,7 +96,7 @@ scope Visitor;
 	qVisitor.reset(); 
     hblParamCnt =0;
 }
-	: 	^( SELECT exprList fromClause whereClause? groupClause? ) 
+	: 	^( SELECT exprList fromClause whereClause? groupClause? orderClause* limitClause? ) 
 	{ 
 		qVisitor.visitSelect ( $exprList.start, $fromClause.start, $whereClause.start, $groupClause.start );
 	}
@@ -154,6 +154,40 @@ scope Visitor;
 }
     :   ^( GROUP id+ )
     ;    
+
+
+
+
+orderClause
+    :   ^(DIMENSION func=id ordr=id?)
+    {
+        try {
+			qVisitor.visitOrderBy($func.nameVal,$ordr.nameVal);
+        } catch ( Exception exc ) {
+
+        }
+    }
+	|   ^(MEASURE func=id fun=id ordr=id?)
+    {
+        try {
+			qVisitor.visitOrderByMeasure($func.nameVal,$fun.nameVal,$ordr.nameVal);
+        } catch ( Exception exc ) {
+
+        }
+    }
+    ;
+	
+limitClause
+	:   ^(LIMIT INT)
+    {
+         try {
+			qVisitor.visitLimit($INT);
+        } catch ( Exception exc ) {
+
+        }
+    }
+    ;
+
     
 aggrFunc returns [String measure, String funcName]
 scope Visitor;
@@ -192,7 +226,10 @@ id  returns [ String nameVal ]
     |   param { $param.val instanceof String}? {
     	   $nameVal = (String) $param.val;
         }
-    ;               
+    ;    
+	 
+	
+           
         
     
 param returns [Object val]

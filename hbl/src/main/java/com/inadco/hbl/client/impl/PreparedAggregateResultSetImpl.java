@@ -33,6 +33,8 @@ import com.inadco.hbl.client.HblException;
 import com.inadco.hbl.client.PreparedAggregateResult;
 import com.inadco.hbl.client.impl.scanner.ScanSpec;
 
+import coprocessor.results.CompositeRawScanResultComparator;
+
 /**
  * a result set that can answer requests for values based on prepared query
  * index and expression alias name in the select query.
@@ -57,7 +59,9 @@ public class PreparedAggregateResultSetImpl extends AggregateResultSetImpl imple
                                    Map<String, Object> resultDefByAlias,
                                    byte[] splitStartKey,
                                    byte[] splitEndKey,
-                                   String splitCuboidTableName) throws IOException {
+                                   String splitCuboidTableName,
+                                   int numRows,
+                                   CompositeRawScanResultComparator comp) throws IOException {
         super(scanSpecs,
               es,
               tpool,
@@ -66,7 +70,9 @@ public class PreparedAggregateResultSetImpl extends AggregateResultSetImpl imple
               dimName2GroupKeyOffsetMap,
               splitStartKey,
               splitEndKey,
-              splitCuboidTableName);
+              splitCuboidTableName, 
+              numRows,
+              comp);
         this.resultDefByAlias = resultDefByAlias;
         this.resultDefByIndex = resultDefByIndex;
     }

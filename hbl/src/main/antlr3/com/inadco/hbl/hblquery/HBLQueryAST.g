@@ -14,9 +14,13 @@ tokens {
   BY = 'by';
   WHERE = 'where';
   SLICE = 'slice';
+  ORDER = 'order';
+  LIMIT = 'limit';
   IN = 'in';
   INF = 'inf';
   FUNC;
+  MEASURE;
+  DIMENSION;
   SELECTION_LIST;
   SEL_EXPR;
   LEFTOPEN;
@@ -57,7 +61,7 @@ tokens {
 }
 
 select 
-	: 	SELECT^ selectExprList fromClause whereClause? groupClause? EOF! 
+	: 	SELECT^ selectExprList fromClause whereClause? groupClause? orderClause* limitClause? EOF! 
 	;
 	
 selectExprList 
@@ -71,7 +75,21 @@ fromClause
 groupClause 	     
 	:	GROUP^ BY! id (','! id)* 
 	;
-		
+
+orderClause
+        :		ORDER! BY! measureFunc (','! measureFunc)* 
+        ;
+
+limitClause
+	: 	LIMIT^ INT
+	;
+	
+measureFunc 
+	:	func=id '(' fparam=id ')' -> ^( MEASURE $func $fparam ) 
+	|	func=id '(' fparam=id ')' ordr=id -> ^( MEASURE $func $fparam $ordr ) 
+	|	func=id -> ^( DIMENSION $func )
+	|	func=id ordr=id -> ^( DIMENSION $func $ordr )
+	;
 	
 unaryFunc 
 	:	func=id '(' fparam=id ')' -> ^( FUNC $func $fparam ) 

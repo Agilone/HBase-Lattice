@@ -43,6 +43,7 @@ import com.inadco.hbl.hblquery.HBLQueryASTLexer;
 import com.inadco.hbl.hblquery.HBLQueryASTParser;
 import com.inadco.hbl.hblquery.HBLQueryPrep;
 
+
 /**
  * Prepared Aggregate Query ( {@link PreparedAggregateQuery} ) implementation .
  * <P>
@@ -64,6 +65,9 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
     private Map<Integer, Object> parameters        = new HashMap<Integer, Object>();
     private Map<Integer, Object> resultDefsByIndex = new HashMap<Integer, Object>();
     private Map<String, Object>  resultDefsByAlias = new LinkedHashMap<String, Object>();
+    
+      
+    
 
     public PreparedAggregateQueryImpl(HblQueryClient client, ExecutorService es, HTablePool tpool) {
         super(client, es, tpool);
@@ -173,7 +177,9 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
             resultDefsByAlias,
             startSplitKey,
             endSplitKey,
-            enforcedCuboidTableName);
+            enforcedCuboidTableName,
+            limit,
+            comparator);
     }
 
     /**
@@ -219,5 +225,7 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
         resultDefsByIndex.put(index, dim);
         resultDefsByAlias.put(alias, dim);
     }
+
+	
 
 }

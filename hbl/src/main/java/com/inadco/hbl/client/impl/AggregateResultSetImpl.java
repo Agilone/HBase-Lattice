@@ -54,6 +54,8 @@ import com.inadco.hbl.client.impl.scanner.ScanSpec;
 import com.inadco.hbl.protocodegen.Cells.Aggregation;
 import com.inadco.hbl.util.IOUtil;
 
+import coprocessor.results.CompositeRawScanResultComparator;
+
 /**
  * Aggregated result set implementation .
  * 
@@ -81,7 +83,9 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
                            final Map<String, Integer> dimName2GroupKeyOffsetMap,
                            final byte[] startSplitKey,
                            final byte[] endSplitKey,
-                           final String enforcedCuboidTableName) throws IOException {
+                           final String enforcedCuboidTableName,
+                           final int numRows,
+                           final CompositeRawScanResultComparator comp) throws IOException {
         super();
 
         Validate.notNull(scanSpecs);
@@ -116,7 +120,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
 
                 @Override
                 public FilteringScanSpecScanner call() throws IOException, HblException {
-                    return new FilteringScanSpecScanner(ss, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName);
+                    return new FilteringScanSpecScanner(ss, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,numRows,comp);
                 }
             };
 
@@ -130,7 +134,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
         IOException lastExc = null;
         try {
             FilteringScanSpecScanner fscanner =
-                new FilteringScanSpecScanner(firstSpec, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName);
+                new FilteringScanSpecScanner(firstSpec, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,numRows,comp);
             closeables.addFirst(fscanner);
             filteringScanners.add(fscanner);
         } catch (IOException exc) {

@@ -18,10 +18,14 @@
  */
 package com.inadco.hbl.client.impl.scanner;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.io.Writable;
 
 import com.inadco.hbl.api.AggregateFunctionRegistry;
 import com.inadco.hbl.client.impl.SliceOperation;
@@ -36,12 +40,23 @@ import com.inadco.hbl.protocodegen.Cells.Aggregation;
  * @author dmitriy
  * 
  */
-public class RawScanResult implements Cloneable {
+public class RawScanResult implements Cloneable, Writable {
 
     private byte[]                group;
     private Aggregation.Builder[] measures;
     private SliceOperation        sliceOperation;
 
+    public RawScanResult() {
+    	
+    }
+    
+    public RawScanResult(int groupKeyLen, int getMeasureQualifiers, SliceOperation so) {
+    	super();
+    	setGroup(new byte[groupKeyLen]);
+    	setMeasures(new Aggregation.Builder[getMeasureQualifiers]);
+    	sliceOperation = so;
+    }
+    
     public RawScanResult(ScanSpec ss) {
         super();
         setGroup(new byte[ss.getGroupKeyLen()]);
@@ -49,6 +64,31 @@ public class RawScanResult implements Cloneable {
         sliceOperation = ss.getSliceOperation();
 
     }
+    
+    @Override
+	public void write(DataOutput out) throws IOException {
+    	out.writeInt(measures.length);
+		for(Aggregation.Builder b : measures) {
+			byte[] arr = b.build().toByteArray();
+			out.writeInt(arr.length);
+			out.write(arr);
+		}
+		out.writeInt(group.length);
+		out.write(group);
+	}
+
+	@Override
+	public void readFields(DataInput in) throws IOException {
+		measures = new Aggregation.Builder[in.readInt()];
+		for(int i=0;i<measures.length;i++) {
+			byte[] arr = new byte[in.readInt()];
+			in.readFully(arr);
+			measures[i] = Aggregation.newBuilder();
+			measures[i].mergeFrom(arr);
+		}
+		group = new byte[in.readInt()];
+		in.readFully(group);
+	}
 
     public byte[] getGroup() {
         return group;
@@ -79,7 +119,7 @@ public class RawScanResult implements Cloneable {
         Arrays.fill(measures, null);
     }
 
-    void mergeMeasures(RawScanResult other, AggregateFunctionRegistry afr, SliceOperation so) {
+    public void mergeMeasures(RawScanResult other, AggregateFunctionRegistry afr, SliceOperation so) {
         for (int i = 0; i < measures.length; i++) {
             if (other.measures[i] != null) {
                 if (measures[i] == null)

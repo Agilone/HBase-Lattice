@@ -20,4 +20,10 @@ public interface QueryVisitor {
 
     void visitCube(String cubeName) throws HblException;
 
+	void visitOrderBy(String dimension, String order);
+
+	void visitOrderByMeasure(String func, String measure, String order);
+
+	void visitLimit(Object limit);
+
 }

@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Map;
 
 import org.apache.commons.lang.Validate;
 import org.apache.hadoop.hbase.KeyValue;
@@ -30,6 +31,7 @@ import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.coprocessor.Batch;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import com.inadco.datastructs.InputIterator;
@@ -37,6 +39,10 @@ import com.inadco.hbl.client.HblAdmin;
 import com.inadco.hbl.protocodegen.Cells.Aggregation;
 import com.inadco.hbl.util.HblUtil;
 import com.inadco.hbl.util.IOUtil;
+
+import coprocessor.HblScanProtocol;
+import coprocessor.results.CompositeRawScanResultComparator;
+import coprocessor.results.RawScanResultTree;
 
 /**
  * Filtered scan.
@@ -51,176 +57,232 @@ import com.inadco.hbl.util.IOUtil;
  */
 public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 
-    // caching. TODO: make this configurable.
-    public static final int  CACHING      = 1000;
+	// caching. TODO: make this configurable.
+	public static final int  CACHING      = 1000;
 
-    private ScanSpec         scanSpec;
+	private ScanSpec         scanSpec;
 
-    private RawScanResult    next;
-    private RawScanResult    current;
-    private RawScanResult    holder;
+	private RawScanResult    next;
+	private RawScanResult    current;
+	private RawScanResult    holder;
 
-    private ResultScanner    scanner;
+	private ResultScanner    scanner;
 
-    private Deque<Closeable> closeables   = new ArrayDeque<Closeable>();
+	private Deque<Closeable> closeables   = new ArrayDeque<Closeable>();
 
-    private int              currentIndex = -1;
+	private int              currentIndex = -1;
 
-    /**
-     * 
-     * @param scanSpec
-     * @param tablePool
-     * @param splitStartKey
-     *            optional: input split's requested beginning of the table
-     * @param splitEndKey
-     *            optional: input split's requested end of the table (half-open;
-     *            null value means till the end of the table)
-     * @param inputFormatTableName
-     *            optional: input format's table name used to assert idempotency
-     *            of execution accross all split tasks.
-     * @throws IOException
-     */
-    public FilteringScanSpecScanner(ScanSpec scanSpec,
-                                    HTablePool tablePool,
-                                    byte[] splitStartKey,
-                                    byte[] splitEndKey,
-                                    String inputFormatTableName) throws IOException {
-        super();
-        this.scanSpec = scanSpec;
-        Validate.notNull(scanSpec);
-        Validate.notEmpty(scanSpec.getMeasureQualifiers(), "scan requested no measures");
+	private RawScanResultTree rsrt;
+	private CompositeRawScanResultComparator compositeScanComparator;
+	private int maxResultRows;
 
-        String tableName = scanSpec.getCuboid().getCuboidTableName();
+	/**
+	 * 
+	 * @param scanSpec
+	 * @param tablePool
+	 * @param splitStartKey
+	 *            optional: input split's requested beginning of the table
+	 * @param splitEndKey
+	 *            optional: input split's requested end of the table (half-open;
+	 *            null value means till the end of the table)
+	 * @param inputFormatTableName
+	 *            optional: input format's table name used to assert idempotency
+	 *            of execution accross all split tasks.
+	 * @param resultRows
+	 * 			max results to return from this scanner
+	 * @param compComparator
+	 *			Specs for any order by operation 
+	 *            
+	 * @throws IOException
+	 */
+	public FilteringScanSpecScanner(final ScanSpec scanSpec,
+			HTablePool tablePool,
+			final byte[] splitStartKey,
+			final byte[] splitEndKey,
+			String inputFormatTableName, 
+			final int resultRows, 
+			final CompositeRawScanResultComparator compComparator) throws IOException {
+		super();
 
-        if (inputFormatTableName != null && !tableName.equals(inputFormatTableName))
+		maxResultRows = resultRows;
+		compositeScanComparator = compComparator;
 
-            throw new IOException(
-                String.format("Input format validation failed: expected table name %s from front end "
-                    + "but different in the back end: %s.", inputFormatTableName, tableName));
+		this.scanSpec = scanSpec;
+		Validate.notNull(scanSpec);
+		Validate.notEmpty(scanSpec.getMeasureQualifiers(), "scan requested no measures");
 
-        byte[] tableNameBytes = Bytes.toBytes(scanSpec.getCuboid().getCuboidTableName());
-        CompositeKeyRowFilter krf = new CompositeKeyRowFilter(scanSpec.getRanges());
-        byte[] startRow = krf.getCompositeBound(true);
-        byte[] endRow = krf.getCompositeBound(false);
-        if (HblUtil.incrementKey(endRow, 0, endRow.length))
-            endRow = null;
+		String tableName = scanSpec.getCuboid().getCuboidTableName();
 
-        /*
-         * process split constraints, if given.
-         */
-        if (splitStartKey != null) {
-            if (Bytes.compareTo(startRow, splitStartKey) < 0)
-                startRow = splitStartKey;
-            if (splitEndKey != null) {
-                if (endRow == null)
-                    endRow = splitEndKey;
-                else if (Bytes.compareTo(splitEndKey, endRow) < 0)
-                    endRow = splitEndKey;
-            }
-            /*
-             * as a result of such correction, it may happen (although should
-             * not) that our correction for split resulted in a negative
-             * interval.
-             * 
-             * if that's the case, then it means empty scan and we just fix it
-             * by throwing end row to be the same as start.
-             */
-            if (endRow != null && Bytes.compareTo(endRow, startRow) < 0)
-                endRow = startRow;
-        }
+		if (inputFormatTableName != null && !tableName.equals(inputFormatTableName))
 
-        Scan scan = new Scan();
-        scan.setCaching(CACHING);
-        scan.setStartRow(startRow);
-        if (endRow != null)
-            scan.setStopRow(endRow);
+			throw new IOException(
+					String.format("Input format validation failed: expected table name %s from front end "
+							+ "but different in the back end: %s.", inputFormatTableName, tableName));
 
-        scan.setFilter(krf);
+		byte[] tableNameBytes = Bytes.toBytes(scanSpec.getCuboid().getCuboidTableName());
 
-        HTableInterface table = tablePool.getTable(tableNameBytes);
-        Validate.notNull(table);
-        closeables.addFirst(new IOUtil.PoolableHtableCloseable(tablePool, table));
+		if(compositeScanComparator.getComparators().size() > 0) {
+			try {
 
-        scanner = table.getScanner(scan);
-        closeables.addFirst(scanner);
+				Map<byte[], RawScanResultTree> topRows4 = tablePool.getTable(tableName).coprocessorExec(
+						HblScanProtocol.class, null, null,
+						new Batch.Call<HblScanProtocol, RawScanResultTree>() {
+							@Override
+							public RawScanResultTree call(HblScanProtocol counter)
+									throws IOException {
+								return counter.getTopRowsMeasure(scanSpec.getRanges(), scanSpec.getMeasureQualifiers(), scanSpec.getGroupKeyLen(), resultRows, compComparator, splitStartKey, splitEndKey);
+							}
+						});
+				rsrt = new RawScanResultTree(compComparator);
+				for(RawScanResultTree tr : topRows4.values()) {
+					rsrt.addAll(tr.getEntries());
+				}
+			} catch (Throwable throwable) {
+				throwable.printStackTrace();
+			}
+		} else {
 
-        closeables.remove(table);
-        /*
-         * this has been deprecated in 0.92. use close() instead.
-         * 
-         * tablePool.putTable(table);
-         */
-        table.close();
+			CompositeKeyRowFilter krf = new CompositeKeyRowFilter(scanSpec.getRanges());
+			byte[] startRow = krf.getCompositeBound(true);
+			byte[] endRow = krf.getCompositeBound(false);
+			if (HblUtil.incrementKey(endRow, 0, endRow.length))
+				endRow = null;
 
-    }
+			/*
+			 * process split constraints, if given.
+			 */
+			if (splitStartKey != null) {
+				if (Bytes.compareTo(startRow, splitStartKey) < 0)
+					startRow = splitStartKey;
+				if (splitEndKey != null) {
+					if (endRow == null)
+						endRow = splitEndKey;
+					else if (Bytes.compareTo(splitEndKey, endRow) < 0)
+						endRow = splitEndKey;
+				}
+				/*
+				 * as a result of such correction, it may happen (although should
+				 * not) that our correction for split resulted in a negative
+				 * interval.
+				 * 
+				 * if that's the case, then it means empty scan and we just fix it
+				 * by throwing end row to be the same as start.
+				 */
+				if (endRow != null && Bytes.compareTo(endRow, startRow) < 0)
+					endRow = startRow;
+			}
 
-    @Override
-    public void close() throws IOException {
-        IOUtil.closeAll(closeables);
-    }
+			Scan scan = new Scan();
+			scan.setCaching(CACHING);
+			scan.setStartRow(startRow);
+			if (endRow != null)
+				scan.setStopRow(endRow);
 
-    @Override
-    public boolean hasNext() throws IOException {
-        if (next != null)
-            return true;
-        next = fetchNextRawResult(holder);
-        if (next == null)
-            return false;
-        holder = null;
-        return true;
+			scan.setFilter(krf);
 
-    }
+			HTableInterface table = tablePool.getTable(tableNameBytes);
+			Validate.notNull(table);
+			closeables.addFirst(new IOUtil.PoolableHtableCloseable(tablePool, table));
 
-    @Override
-    public void next() throws IOException {
-        if (!hasNext())
-            throw new IOException("At the end of the iterator");
-        holder = current;
-        current = next;
-        next = null;
-        currentIndex++;
+			scanner = table.getScanner(scan);
+			closeables.addFirst(scanner);
 
-    }
+			closeables.remove(table);
+			/*
+			 * this has been deprecated in 0.92. use close() instead.
+			 * 
+			 * tablePool.putTable(table);
+			 */
+			table.close();
+		}
+	}
 
-    @Override
-    public RawScanResult current() throws IOException {
-        return current;
-    }
+	@Override
+	public void close() throws IOException {
+		IOUtil.closeAll(closeables);
+	}
 
-    @Override
-    public int getCurrentIndex() throws IOException {
-        return currentIndex;
-    }
+	@Override
+	public boolean hasNext() throws IOException {
+		if(compositeScanComparator.getComparators().size() > 0) {
+			if((currentIndex+1) >= Math.min(maxResultRows, rsrt.size())) {
+				return false;
+			}
+		} else {
+			if((currentIndex+1) >= maxResultRows) {
+				return false;
+			}
+		}
 
-    public ScanSpec getScanSpec() {
-        return scanSpec;
-    }
+		if (next != null)
+			return true;
+		next = fetchNextRawResult(holder);
+		if (next == null)
+			return false;
+		holder = null;
+		return true;
 
-    private RawScanResult fetchNextRawResult(RawScanResult holder) throws IOException {
-        Result r = scanner.next();
-        if (r == null)
-            return null;
+	}
 
-        if (holder == null)
-            holder = new RawScanResult(scanSpec);
+	@Override
+	public void next() throws IOException {
+		if (!hasNext())
+			throw new IOException("At the end of the iterator");
+		holder = current;
+		current = next;
+		next = null;
+		currentIndex++;
 
-        byte[] row = r.getRow();
-        Validate.isTrue(row.length >= scanSpec.getGroupKeyLen());
-        System.arraycopy(row, 0, holder.getGroup(), 0, scanSpec.getGroupKeyLen());
+	}
 
-        int i = 0;
-        for (byte[] measureQualifier : scanSpec.getMeasureQualifiers()) {
-            KeyValue kv = r.getColumnLatest(HblAdmin.HBL_METRIC_FAMILY, measureQualifier);
-            if (kv == null)
-                holder.getMeasures()[i++] = null;
-            else {
-                Aggregation.Builder aggrB = Aggregation.newBuilder();
-                aggrB.mergeFrom(kv.getBuffer(), kv.getValueOffset(), kv.getValueLength());
-                holder.getMeasures()[i++] = aggrB;
-            }
-        }
+	@Override
+	public RawScanResult current() throws IOException {
+		return current;
+	}
 
-        return holder;
-    }
+	@Override
+	public int getCurrentIndex() throws IOException {
+		return currentIndex;
+	}
+
+	public ScanSpec getScanSpec() {
+		return scanSpec;
+	}
+
+	private RawScanResult fetchNextRawResult(RawScanResult holder) throws IOException {
+		if(compositeScanComparator.getComparators().size() > 0) {
+			try {
+				return rsrt.popFirst().getValue();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+			return null;
+		} else {
+			Result r = scanner.next();
+			if (r == null)
+				return null;
+
+			if (holder == null)
+				holder = new RawScanResult(scanSpec);
+
+			byte[] row = r.getRow();
+			Validate.isTrue(row.length >= scanSpec.getGroupKeyLen());
+			System.arraycopy(row, 0, holder.getGroup(), 0, scanSpec.getGroupKeyLen());
+
+			int i = 0;
+			for (byte[] measureQualifier : scanSpec.getMeasureQualifiers()) {
+				KeyValue kv = r.getColumnLatest(HblAdmin.HBL_METRIC_FAMILY, measureQualifier);
+				if (kv == null)
+					holder.getMeasures()[i++] = null;
+				else {
+					Aggregation.Builder aggrB = Aggregation.newBuilder();
+					aggrB.mergeFrom(kv.getBuffer(), kv.getValueOffset(), kv.getValueLength());
+					holder.getMeasures()[i++] = aggrB;
+				}
+			}
+
+			return holder;
+		}
+	}
 
 }

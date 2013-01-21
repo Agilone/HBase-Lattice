@@ -47,7 +47,7 @@ public class SimpleAggregateFunctionRegistry implements AggregateFunctionRegistr
 
     private final Map<String, AggregateFunction> functions = new HashMap<String, AggregateFunction>();
 
-    SimpleAggregateFunctionRegistry() {
+    public SimpleAggregateFunctionRegistry() {
         super();
         // standard aggregates
         addFunction(new FCount());

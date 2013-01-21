@@ -18,6 +18,8 @@
  */
 package com.inadco.hbl.client;
 
+import com.inadco.hbl.client.impl.AggregateQueryImpl;
+
 /**
  * Aggregate query interface.
  * <P>
@@ -136,5 +138,12 @@ public interface AggregateQuery {
      * @throws HblException
      */
     AggregateResultSet execute() throws HblException;
+
+	AggregateQueryImpl addOrderBy(String dimension, boolean ascending);
+
+	void addLimit(int limit);
+
+	AggregateQuery addOrderByMeasure(String function, String measureName,
+			boolean ascending);
 
 }
