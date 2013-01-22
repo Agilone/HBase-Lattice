@@ -68,6 +68,8 @@ public class AggregateQueryImpl implements AggregateQuery {
 	protected AggregateFunctionRegistry afr;
 	protected boolean                   allowComplements;
 	protected int 						limit = Integer.MAX_VALUE;
+	protected String					distinctDimension;
+	protected int[][]					keyOffsets;
 
 	protected CompositeRawScanResultComparator comparator = new CompositeRawScanResultComparator(); 
 
@@ -166,13 +168,28 @@ public class AggregateQueryImpl implements AggregateQuery {
 		List<Range> partialSpec = new ArrayList<Range>();
 
 		int groupKeyLen = 0, curKeyLen = 0;
+		
+		
+		if(this.distinctDimension != null) {
+			keyOffsets = new int[2][groupDimensions.size()-1];
+		}
 
+		int dCnt = 0;
 		for (Dimension dim : cuboid.getCuboidDimensions()) {
 			String dimName = dim.getName();
+			
+			if(this.distinctDimension != null && !this.distinctDimension.equals(dim.getName())) {
+				keyOffsets[0][dCnt] = curKeyLen;
+				keyOffsets[1][dCnt] = dim.getKeyLen();
+			}
+			
 			dimName2GroupKeyOffsetMap.put(dimName, curKeyLen);
 			curKeyLen += dim.getKeyLen();
-			if (groupDimensions.contains(dim.getName()))
+			
+			if (groupDimensions.contains(dim.getName())) {
 				groupKeyLen = curKeyLen;
+			}
+			dCnt++;
 		}
 
 		byte[][] measureQualifiers = new byte[measures.size()][];
@@ -476,8 +493,16 @@ public class AggregateQueryImpl implements AggregateQuery {
     }
     
 	@Override
-    public void addLimit(int _limit) {
+    public AggregateQuery addLimit(int _limit) {
     	limit = _limit;
+    	return this;
+    }
+	
+	@Override
+    public AggregateQuery addDistinctCount(String _dimension) {
+		distinctDimension = _dimension;
+		groupDimensions.add(_dimension);
+    	return this;
     }
 
 }

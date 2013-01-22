@@ -120,10 +120,12 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 							+ "but different in the back end: %s.", inputFormatTableName, tableName));
 
 		byte[] tableNameBytes = Bytes.toBytes(scanSpec.getCuboid().getCuboidTableName());
-
+		/*
+		 * For now, fire coprocessor in construct, move this to hasNext() or next()
+		 * 
+		 */
 		if(compositeScanComparator.getComparators().size() > 0) {
 			try {
-
 				Map<byte[], RawScanResultTree> topRows4 = tablePool.getTable(tableName).coprocessorExec(
 						HblScanProtocol.class, null, null,
 						new Batch.Call<HblScanProtocol, RawScanResultTree>() {
@@ -249,7 +251,7 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 			try {
 				return rsrt.popFirst().getValue();
 			} catch(Exception e) {
-				e.printStackTrace();
+				//e.printStackTrace();
 			}
 			return null;
 		} else {

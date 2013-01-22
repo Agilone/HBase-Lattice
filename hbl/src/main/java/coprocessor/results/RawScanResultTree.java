@@ -12,6 +12,7 @@ import java.util.Map.Entry;
 
 import java.util.AbstractMap.SimpleEntry;
 
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Writable;
 
 import com.inadco.hbl.client.impl.SliceOperation;
@@ -28,10 +29,13 @@ import com.inadco.hbl.model.SimpleAggregateFunctionRegistry;
  */
 public class RawScanResultTree implements Writable {
 
-	private transient TreeSet<Entry<byte[],RawScanResult>> set;
-	private Map<byte[],RawScanResult> map = new HashMap<byte[],RawScanResult>();
 	private static transient SimpleAggregateFunctionRegistry sim = new SimpleAggregateFunctionRegistry();
+	
+	private transient TreeSet<Entry<byte[],RawScanResult>> set;
+	
+	private Map<byte[],RawScanResult> map = new HashMap<byte[],RawScanResult>();
 	private CompositeRawScanResultComparator comparator;
+	
 	public RawScanResultTree() {
 		
 	}
@@ -43,6 +47,17 @@ public class RawScanResultTree implements Writable {
 	
 	public int size() {
 		return set.size();
+	}
+	
+	public boolean containsGroup(Entry<byte[],RawScanResult> entry) {
+		
+		for(Entry<byte[],RawScanResult> ent : map.entrySet()) {
+			if(Bytes.BYTES_RAWCOMPARATOR.compare(ent.getValue().getGroup(),entry.getValue().getGroup()) == 0) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	public void add(Entry<byte[],RawScanResult> entry) {
@@ -91,10 +106,18 @@ public class RawScanResultTree implements Writable {
 		return null;
 	}
 	
+	/**
+	 * returns all entries in the sorted tree
+	 * 
+	 * @return
+	 */
 	public Collection<Entry<byte[],RawScanResult>> getEntries() {
 		return map.entrySet();
 	}
 
+	/* (non-Javadoc)
+	 * @see org.apache.hadoop.io.Writable#write(java.io.DataOutput)
+	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		comparator.write(out);
@@ -105,9 +128,11 @@ public class RawScanResultTree implements Writable {
 			out.write(entry.getKey());
 			entry.getValue().write(out);
 		}
-		
 	}
 
+	/* (non-Javadoc)
+	 * @see org.apache.hadoop.io.Writable#readFields(java.io.DataInput)
+	 */
 	@Override
 	public void readFields(DataInput in) throws IOException {
 		comparator = new CompositeRawScanResultComparator();

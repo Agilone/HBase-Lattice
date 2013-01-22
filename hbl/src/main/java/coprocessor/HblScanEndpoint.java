@@ -37,9 +37,7 @@ import coprocessor.results.RawScanResultTree;
 public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanProtocol {
 
 	public RawScanResultTree getTopRowsMeasure(Range[] ranges, byte[][] measureQualifiers, int groupKeyLen, int rows, CompositeRawScanResultComparator rsrc, byte[] splitStartKey,
-            final byte[] splitEndKey) throws IOException {
-		
-		
+			final byte[] splitEndKey) throws IOException {
 
 		RawScanResultTree tree = new RawScanResultTree(rsrc);
 
@@ -49,7 +47,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 		if (HblUtil.incrementKey(endRow, 0, endRow.length))
 			endRow = null;
 
-		
+
 		if (splitStartKey != null) {
 			if (Bytes.compareTo(startRow, splitStartKey) < 0)
 				startRow = splitStartKey;
@@ -59,18 +57,11 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				else if (Bytes.compareTo(splitEndKey, endRow) < 0)
 					endRow = splitEndKey;
 			}
-			/*
-			 * as a result of such correction, it may happen (although should
-			 * not) that our correction for split resulted in a negative
-			 * interval.
-			 * 
-			 * if that's the case, then it means empty scan and we just fix it
-			 * by throwing end row to be the same as start.
-			 */
+
 			if (endRow != null && Bytes.compareTo(endRow, startRow) < 0)
 				endRow = startRow;
 		}
-		
+
 		Scan scan = new Scan();
 		scan.setCaching(5000);
 		scan.setStartRow(startRow);
@@ -105,7 +96,6 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				if (holder == null) 
 					holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD);
 
-
 				byte[] row = r.getRow();
 
 				System.arraycopy(row, 0, holder.getGroup(), 0, groupKeyLen);
@@ -138,7 +128,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 					} else {
 						Entry<byte[],RawScanResult> dlowest = null;
 						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,holder);
-						
+
 						dlowest = tree.last();
 
 						if(firstResult) {
@@ -152,23 +142,22 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 							}
 						}
 					}
-
 				}
 
 				prev_holder = holder;
 				holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD);
 
-
 			} while (done);
 
-			if(firstRawResult != null) { tree.add(firstRawResult); }
-			if(lastRawResult != null) { tree.add(lastRawResult); }
+			if(lastRawResult != null && !tree.containsGroup(lastRawResult)) { tree.add(lastRawResult); }
+			if(firstRawResult != null && !tree.containsGroup(firstRawResult)) { tree.add(firstRawResult); }
+
 		} catch(Throwable t) {
 			t.printStackTrace();
 		} finally {
 			scanner.close();
 		}
-		
+
 		return tree;
 	}
 }
