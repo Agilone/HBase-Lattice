@@ -168,28 +168,31 @@ public class AggregateQueryImpl implements AggregateQuery {
 		List<Range> partialSpec = new ArrayList<Range>();
 
 		int groupKeyLen = 0, curKeyLen = 0;
-		
-		
+
+
 		if(this.distinctDimension != null) {
-			keyOffsets = new int[2][groupDimensions.size()-1];
+			keyOffsets = new int[2][groupDimensions.size()];
 		}
 
 		int dCnt = 0;
 		for (Dimension dim : cuboid.getCuboidDimensions()) {
 			String dimName = dim.getName();
-			
+
 			if(this.distinctDimension != null && !this.distinctDimension.equals(dim.getName())) {
 				keyOffsets[0][dCnt] = curKeyLen;
 				keyOffsets[1][dCnt] = dim.getKeyLen();
+				dCnt++;
+			} else if(this.distinctDimension != null && this.distinctDimension.equals(dim.getName())) {
+				keyOffsets[0][groupDimensions.size()-1] = curKeyLen;
+				keyOffsets[1][groupDimensions.size()-1] = dim.getKeyLen();
 			}
-			
+
 			dimName2GroupKeyOffsetMap.put(dimName, curKeyLen);
 			curKeyLen += dim.getKeyLen();
-			
+
 			if (groupDimensions.contains(dim.getName())) {
 				groupKeyLen = curKeyLen;
 			}
-			dCnt++;
 		}
 
 		byte[][] measureQualifiers = new byte[measures.size()][];
@@ -308,6 +311,7 @@ public class AggregateQueryImpl implements AggregateQuery {
 				startSplitKey,
 				endSplitKey,
 				enforcedCuboidTableName,
+				keyOffsets,
 				limit,
 				comparator);
 	}
@@ -474,35 +478,38 @@ public class AggregateQueryImpl implements AggregateQuery {
 
 		return this;
 	}
-	
+
 	@Override
 	public AggregateQuery addOrderByMeasure(String function, String measureName, boolean ascending) {
-    	
-    	measures.add(measureName);
-    	
-    	int mCnt=0;
-    	for (String mName : measures) {
-    		if(measureName.equals(mName)) {
-    			RawScanResultMeasureComparator obm = new RawScanResultMeasureComparator(mCnt, function, ascending);
-    			comparator.add(obm);
-    		}
-            mCnt++;
-        }
-    	
-    	return this;
-    }
-    
+		if(function.equalsIgnoreCase("distinct")) {
+			RawScanResultMeasureComparator obm = new RawScanResultMeasureComparator(ascending);
+			comparator.add(obm);
+		} else {
+			measures.add(measureName);
+
+			int mCnt=0;
+			for (String mName : measures) {
+				if(measureName.equals(mName)) {
+					RawScanResultMeasureComparator obm = new RawScanResultMeasureComparator(mCnt, function, ascending);
+					comparator.add(obm);
+				}
+				mCnt++;
+			}
+		}
+		return this;
+	}
+
 	@Override
-    public AggregateQuery addLimit(int _limit) {
-    	limit = _limit;
-    	return this;
-    }
-	
+	public AggregateQuery addLimit(int _limit) {
+		limit = _limit;
+		return this;
+	}
+
 	@Override
-    public AggregateQuery addDistinctCount(String _dimension) {
+	public AggregateQuery addDistinctCount(String _dimension) {
 		distinctDimension = _dimension;
 		groupDimensions.add(_dimension);
-    	return this;
-    }
+		return this;
+	}
 
 }

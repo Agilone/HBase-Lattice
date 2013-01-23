@@ -100,6 +100,7 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 			final byte[] splitStartKey,
 			final byte[] splitEndKey,
 			String inputFormatTableName, 
+			final int[][] keyOffsets,
 			final int resultRows, 
 			final CompositeRawScanResultComparator compComparator) throws IOException {
 		super();
@@ -124,6 +125,16 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 		 * For now, fire coprocessor in construct, move this to hasNext() or next()
 		 * 
 		 */
+		int groupKeyLengthMed = 0;
+		if(keyOffsets != null) {
+			for(int i=0;i<keyOffsets[1].length;i++) {
+				groupKeyLengthMed += keyOffsets[1][i];
+			}
+		} else {
+			groupKeyLengthMed = scanSpec.getGroupKeyLen();
+		}
+		final int groupKeyLength = groupKeyLengthMed;
+		
 		if(compositeScanComparator.getComparators().size() > 0) {
 			try {
 				Map<byte[], RawScanResultTree> topRows4 = tablePool.getTable(tableName).coprocessorExec(
@@ -132,13 +143,14 @@ public class FilteringScanSpecScanner implements InputIterator<RawScanResult> {
 							@Override
 							public RawScanResultTree call(HblScanProtocol counter)
 									throws IOException {
-								return counter.getTopRowsMeasure(scanSpec.getRanges(), scanSpec.getMeasureQualifiers(), scanSpec.getGroupKeyLen(), resultRows, compComparator, splitStartKey, splitEndKey);
+								return counter.getTopRowsMeasure(scanSpec.getRanges(), scanSpec.getMeasureQualifiers(), groupKeyLength, keyOffsets, resultRows, compComparator, splitStartKey, splitEndKey);
 							}
 						});
 				rsrt = new RawScanResultTree(compComparator);
 				for(RawScanResultTree tr : topRows4.values()) {
 					rsrt.addAll(tr.getEntries());
 				}
+				
 			} catch (Throwable throwable) {
 				throwable.printStackTrace();
 			}

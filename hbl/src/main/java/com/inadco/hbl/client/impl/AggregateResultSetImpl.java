@@ -74,6 +74,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
     private Map<String, Integer>             dim2GroupKeyOffsetMap;
     private Map<String, ? extends Dimension> groupDimName2Dimension;
     private Cuboid                           cuboid;
+    
 
     AggregateResultSetImpl(final List<ScanSpec> scanSpecs,
                            final ExecutorService es,
@@ -84,6 +85,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
                            final byte[] startSplitKey,
                            final byte[] endSplitKey,
                            final String enforcedCuboidTableName,
+                           final int[][] keyOffsets,
                            final int numRows,
                            final CompositeRawScanResultComparator comp) throws IOException {
         super();
@@ -120,7 +122,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
 
                 @Override
                 public FilteringScanSpecScanner call() throws IOException, HblException {
-                    return new FilteringScanSpecScanner(ss, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,numRows,comp);
+                    return new FilteringScanSpecScanner(ss, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,keyOffsets,numRows,comp);
                 }
             };
 
@@ -134,7 +136,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
         IOException lastExc = null;
         try {
             FilteringScanSpecScanner fscanner =
-                new FilteringScanSpecScanner(firstSpec, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,numRows,comp);
+                new FilteringScanSpecScanner(firstSpec, tpool, startSplitKey, endSplitKey, enforcedCuboidTableName,keyOffsets,numRows,comp);
             closeables.addFirst(fscanner);
             filteringScanners.add(fscanner);
         } catch (IOException exc) {

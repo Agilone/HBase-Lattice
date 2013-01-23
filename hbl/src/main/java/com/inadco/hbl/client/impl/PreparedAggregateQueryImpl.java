@@ -178,6 +178,7 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
             startSplitKey,
             endSplitKey,
             enforcedCuboidTableName,
+            keyOffsets,
             limit,
             comparator);
     }

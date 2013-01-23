@@ -60,6 +60,7 @@ public class PreparedAggregateResultSetImpl extends AggregateResultSetImpl imple
                                    byte[] splitStartKey,
                                    byte[] splitEndKey,
                                    String splitCuboidTableName,
+                                   int[][] keyOffsets,
                                    int numRows,
                                    CompositeRawScanResultComparator comp) throws IOException {
         super(scanSpecs,
@@ -71,6 +72,7 @@ public class PreparedAggregateResultSetImpl extends AggregateResultSetImpl imple
               splitStartKey,
               splitEndKey,
               splitCuboidTableName, 
+              keyOffsets,
               numRows,
               comp);
         this.resultDefByAlias = resultDefByAlias;

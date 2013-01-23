@@ -17,49 +17,62 @@ import coprocessor.ByteArrayComparator;
  *
  */
 public class RawScanResultMeasureComparator implements RawScanResultComparatorInterface {
-	
-	
+
+
 	private boolean isMeasure;
+	private boolean isDistinct;
 	private boolean isAsc;
 	private int measureIndex;
 	private String measureFunction;
 	private int start;
 	private int stop;
-	
+
 	private transient byte[] comp1;
 	private transient byte[] comp2;
 	private transient ByteArrayComparator asc;
 	private static transient SimpleAggregateFunctionRegistry sim = new SimpleAggregateFunctionRegistry();
-	
+
 	public RawScanResultMeasureComparator() {
-		
+
 	}
-	
+
+	public RawScanResultMeasureComparator(boolean _isAsc) {
+		isMeasure = false;
+		isDistinct = true;
+		start = 0;
+		stop = 0;
+		isAsc = _isAsc;
+		measureIndex = 0;
+		measureFunction = "";
+	}
+
 	public RawScanResultMeasureComparator(int _measureIndex, String _measureFunction, boolean _isAsc) {
 		isMeasure = true;
+		isDistinct = false;
 		start = 0;
 		stop = 0;
 		isAsc = _isAsc;
 		measureIndex = _measureIndex;
 		measureFunction = _measureFunction;
 	}
-	
+
 	public RawScanResultMeasureComparator(int _start, int _stop, boolean _isAsc) {
 		isMeasure = false;
+		isDistinct = false;
 		start = _start;
 		stop = _stop;
 		isAsc = _isAsc;
 		measureIndex = 0;
 		measureFunction = "";
-		
+
 		asc = new ByteArrayComparator(isAsc);
 		comp1 = new byte[stop-start];
 		comp2 = new byte[stop-start];
-		
+
 	}
-	
+
 	public String toString() {
-		return "RawScanResultMeasureComparator: isMeasure:"+isMeasure+", start:"+start+", stop:"+stop+", isAsc:"+isAsc+", measureIndex:"+measureIndex+", measureFunction:"+measureFunction;
+		return "RawScanResultMeasureComparator: isDistinct:"+isDistinct+", isMeasure:"+isMeasure+", start:"+start+", stop:"+stop+", isAsc:"+isAsc+", measureIndex:"+measureIndex+", measureFunction:"+measureFunction;
 	}
 
 	@Override
@@ -81,6 +94,12 @@ public class RawScanResultMeasureComparator implements RawScanResultComparatorIn
 				}
 				return -1;
 			}
+		} else if(isDistinct) {
+			if(isAsc) {
+				return (o1.getValue().getMergedGroups() - o2.getValue().getMergedGroups());
+			} else {
+				return -(o1.getValue().getMergedGroups() - o2.getValue().getMergedGroups());
+			}
 		} else {
 			System.arraycopy(o1.getKey(), start, comp1, 0, comp1.length);
 			System.arraycopy(o2.getKey(), start, comp2, 0, comp2.length);
@@ -90,10 +109,11 @@ public class RawScanResultMeasureComparator implements RawScanResultComparatorIn
 
 	@Override
 	public void write(DataOutput out) throws IOException {
+		out.writeBoolean(isDistinct);
 		out.writeBoolean(isMeasure);
 		out.writeBoolean(isAsc);
 		out.writeInt(measureIndex);
-		
+
 		out.writeInt(start);
 		out.writeInt(stop);
 		out.writeUTF(measureFunction);
@@ -101,17 +121,18 @@ public class RawScanResultMeasureComparator implements RawScanResultComparatorIn
 
 	@Override
 	public void readFields(DataInput in) throws IOException {
+		isDistinct = in.readBoolean();
 		isMeasure = in.readBoolean();
 		isAsc = in.readBoolean();
 		measureIndex = in.readInt();
-		
+
 		start = in.readInt();
 		stop = in.readInt();
 		measureFunction = in.readUTF();
-		
+
 		asc = new ByteArrayComparator(isAsc);
-		
-		if(!isMeasure) {
+
+		if(!isMeasure && !isDistinct) {
 			comp1 = new byte[stop-start];
 			comp2 = new byte[stop-start];
 		}

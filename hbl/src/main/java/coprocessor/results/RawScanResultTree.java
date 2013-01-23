@@ -15,6 +15,8 @@ import java.util.AbstractMap.SimpleEntry;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Writable;
 
+import org.apache.commons.codec.binary.Base64;
+
 import com.inadco.hbl.client.impl.SliceOperation;
 import com.inadco.hbl.client.impl.scanner.RawScanResult;
 import com.inadco.hbl.model.SimpleAggregateFunctionRegistry;
@@ -33,7 +35,7 @@ public class RawScanResultTree implements Writable {
 	
 	private transient TreeSet<Entry<byte[],RawScanResult>> set;
 	
-	private Map<byte[],RawScanResult> map = new HashMap<byte[],RawScanResult>();
+	private Map<String,RawScanResult> map = new HashMap<String,RawScanResult>();
 	private CompositeRawScanResultComparator comparator;
 	
 	public RawScanResultTree() {
@@ -51,7 +53,7 @@ public class RawScanResultTree implements Writable {
 	
 	public boolean containsGroup(Entry<byte[],RawScanResult> entry) {
 		
-		for(Entry<byte[],RawScanResult> ent : map.entrySet()) {
+		for(Entry<String,RawScanResult> ent : map.entrySet()) {
 			if(Bytes.BYTES_RAWCOMPARATOR.compare(ent.getValue().getGroup(),entry.getValue().getGroup()) == 0) {
 				return true;
 			}
@@ -61,19 +63,21 @@ public class RawScanResultTree implements Writable {
 	}
 	
 	public void add(Entry<byte[],RawScanResult> entry) {
-		if(map.get(entry.getValue().getGroup()) != null) {
-			map.get(entry.getValue().getGroup()).mergeMeasures(entry.getValue(), sim, SliceOperation.ADD);
+		
+		if(map.get(Base64.encodeBase64String(entry.getValue().getGroup())) != null) {
+			map.get(Base64.encodeBase64String(entry.getValue().getGroup())).mergeMeasures(entry.getValue(), sim, SliceOperation.ADD);
 		} else {
 			set.add(entry);
-			map.put(entry.getKey(), entry.getValue());
+			map.put(Base64.encodeBase64String(entry.getValue().getGroup()), entry.getValue());
 		}		
 	}
 	
-	public void addAll(Collection<Entry<byte[],RawScanResult>> coll) {
-		for(Entry<byte[],RawScanResult> en : coll) {
-			add(en);
+	public void addAll(Collection<Entry<String,RawScanResult>> coll) {
+		for(Entry<String,RawScanResult> en : coll) {
+			add(new SimpleEntry<byte[],RawScanResult>(Base64.decodeBase64(en.getKey()),en.getValue()));
 		}
 	}
+
 	
 	public Entry<byte[],RawScanResult> last() {
 		try {
@@ -111,7 +115,7 @@ public class RawScanResultTree implements Writable {
 	 * 
 	 * @return
 	 */
-	public Collection<Entry<byte[],RawScanResult>> getEntries() {
+	public Collection<Entry<String,RawScanResult>> getEntries() {
 		return map.entrySet();
 	}
 
@@ -123,9 +127,9 @@ public class RawScanResultTree implements Writable {
 		comparator.write(out);
 		
 		out.writeInt(map.size());
-		for(Entry<byte[],RawScanResult> entry : map.entrySet()) {
-			out.writeInt(entry.getKey().length);
-			out.write(entry.getKey());
+		for(Entry<String,RawScanResult> entry : map.entrySet()) {
+			out.writeInt(entry.getKey().getBytes().length);
+			out.write(entry.getKey().getBytes());
 			entry.getValue().write(out);
 		}
 	}

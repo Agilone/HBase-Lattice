@@ -36,7 +36,7 @@ import coprocessor.results.RawScanResultTree;
  */
 public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanProtocol {
 
-	public RawScanResultTree getTopRowsMeasure(Range[] ranges, byte[][] measureQualifiers, int groupKeyLen, int rows, CompositeRawScanResultComparator rsrc, byte[] splitStartKey,
+	public RawScanResultTree getTopRowsMeasure(Range[] ranges, byte[][] measureQualifiers, int groupKeyLen, int[][] keyOffset, int rows, CompositeRawScanResultComparator rsrc, byte[] splitStartKey,
 			final byte[] splitEndKey) throws IOException {
 
 		RawScanResultTree tree = new RawScanResultTree(rsrc);
@@ -94,12 +94,14 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				r = new Result(curVals);
 
 				if (holder == null) 
-					holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD);
+					holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD, keyOffset);
 
 				byte[] row = r.getRow();
 
-				System.arraycopy(row, 0, holder.getGroup(), 0, groupKeyLen);
-
+				
+				//System.arraycopy(row, 0, holder.getGroup(), 0, groupKeyLen);
+				holder.setCompositeGroup(row);
+				
 				int i = 0;
 				for (byte[] measureQualifier : measureQualifiers) {
 
@@ -145,7 +147,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				}
 
 				prev_holder = holder;
-				holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD);
+				holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD, keyOffset);
 
 			} while (done);
 

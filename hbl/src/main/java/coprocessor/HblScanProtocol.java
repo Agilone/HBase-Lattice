@@ -19,6 +19,6 @@ import coprocessor.results.RawScanResultTree;
  *
  */
 public interface HblScanProtocol extends CoprocessorProtocol {	
-	RawScanResultTree getTopRowsMeasure(Range[] ranges, byte[][] measureQualifiers, int groupKeyLen, int rows, CompositeRawScanResultComparator rsrc, byte[] splitStartKey,
+	RawScanResultTree getTopRowsMeasure(Range[] ranges, byte[][] measureQualifiers, int groupKeyLen, int[][] keyOffset, int rows, CompositeRawScanResultComparator rsrc, byte[] splitStartKey,
 			final byte[] splitEndKey) throws IOException;
 }
