@@ -174,6 +174,6 @@ public interface AggregateQuery {
 	 * @param distinct
 	 * @return
 	 */
-	AggregateQuery addDistinctCount(String dimension);
+	AggregateQuery addDistinctCount(String dimension, String alias);
 
 }

@@ -93,7 +93,7 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
             if (errors.getErrors().size() > 0) {
                 throw new HblException(errors.formatErrors());
             }
-
+            // System.out.println("Tree "+selectAST.toStringTree());
         } catch (RecognitionException exc) {
             throw new HblException(exc.getMessage());
         }
@@ -205,6 +205,15 @@ public class PreparedAggregateQueryImpl extends AggregateQueryImpl implements Pr
         String[] def = new String[2];
         def[0] = measure;
         def[1] = funcName;
+        resultDefsByIndex.put(index, def);
+        resultDefsByAlias.put(alias, def);
+    }
+    
+    void addDistinctCountRef(int index, String dimension, String alias) {
+    	addDistinctCount(dimension,alias);
+    	String[] def = new String[2];
+        def[0] = dimension;
+        def[1] = "DCOUNT";
         resultDefsByIndex.put(index, def);
         resultDefsByAlias.put(alias, def);
     }

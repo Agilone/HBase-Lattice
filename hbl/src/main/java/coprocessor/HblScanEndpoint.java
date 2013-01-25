@@ -126,10 +126,10 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				if(prev_holder != null) {
 
 					if(Bytes.BYTES_RAWCOMPARATOR.compare(prev_holder.getGroup(), holder.getGroup()) == 0) {
-						holder.mergeMeasures(prev_holder, sim, SliceOperation.ADD);
+						holder.mergeMeasuresSubgroups(prev_holder, sim, SliceOperation.ADD);
 					} else {
 						Entry<byte[],RawScanResult> dlowest = null;
-						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,holder);
+						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,prev_holder);
 
 						dlowest = tree.last();
 
@@ -137,7 +137,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 							firstResult = false;
 						} else if(tree.size() < rows) {
 							tree.add(current);
-						} else if(dlowest != null) {						
+						} else if(dlowest != null) {
 							if(rsrc.compare(current, dlowest) < 0) {
 								tree.popLast();
 								tree.add(current);
@@ -159,7 +159,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 		} finally {
 			scanner.close();
 		}
-
+		
 		return tree;
 	}
 }

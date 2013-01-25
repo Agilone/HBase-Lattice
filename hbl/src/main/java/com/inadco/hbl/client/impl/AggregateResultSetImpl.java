@@ -229,6 +229,7 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
     @Override
     public void next() throws IOException {
         delegate.next();
+        
         if (result == null)
             result = new Aggregation[delegate.current().getMeasures().length];
         else
@@ -254,6 +255,11 @@ public class AggregateResultSetImpl implements AggregateResultSet, AggregateResu
     @Override
     public Object getAggregate(String measure, String functionName) throws HblException {
         try {
+        	if(functionName.equalsIgnoreCase("DCOUNT")) {
+        		// TODO: HACK
+        		return delegate.current().getMergedGroups();
+        	}
+        	        	
             Integer index = measureName2IndexMap.get(measure);
             if (index == null)
                 throw new HblException(String.format("Invalid measure name:%s.", measure));

@@ -16,8 +16,7 @@ tokens {
   SLICE = 'slice';
   ORDER = 'order';
   LIMIT = 'limit';
-  DISTINCT = 'distinct';
-  COUNT = 'count';
+  DIS = 'dis';
   IN = 'in';
   INF = 'inf';
   FUNC;
@@ -87,8 +86,7 @@ limitClause
 	;
 	
 measureFunc 
-	:	DISTINCT COUNT '(' fparam=id ')' -> ^( DISTINCT $fparam ) 
-	|	func=id '(' fparam=id ')' -> ^( MEASURE $func $fparam ) 
+	:	func=id '(' fparam=id ')' -> ^( MEASURE $func $fparam ) 
 	|	func=id '(' fparam=id ')' ordr=id -> ^( MEASURE $func $fparam $ordr ) 
 	|	func=id -> ^( DIMENSION $func )
 	|	func=id ordr=id -> ^( DIMENSION $func $ordr )

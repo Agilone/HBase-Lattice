@@ -6,13 +6,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
 import java.util.TreeSet;
 import java.util.Map.Entry;
-
 import java.util.AbstractMap.SimpleEntry;
 
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Writable;
 
 import org.apache.commons.codec.binary.Base64;
@@ -52,24 +49,23 @@ public class RawScanResultTree implements Writable {
 	}
 	
 	public boolean containsGroup(Entry<byte[],RawScanResult> entry) {
-		
-		for(Entry<String,RawScanResult> ent : map.entrySet()) {
+		return (map.get(Base64.encodeBase64String(entry.getValue().getGroup())) != null);
+		/*for(Entry<String,RawScanResult> ent : map.entrySet()) {
 			if(Bytes.BYTES_RAWCOMPARATOR.compare(ent.getValue().getGroup(),entry.getValue().getGroup()) == 0) {
 				return true;
 			}
 		}
 		
-		return false;
+		return false;*/
 	}
 	
 	public void add(Entry<byte[],RawScanResult> entry) {
-		
 		if(map.get(Base64.encodeBase64String(entry.getValue().getGroup())) != null) {
-			map.get(Base64.encodeBase64String(entry.getValue().getGroup())).mergeMeasures(entry.getValue(), sim, SliceOperation.ADD);
+			map.get(Base64.encodeBase64String(entry.getValue().getGroup())).mergeServerSide(entry.getValue(), sim, SliceOperation.ADD);
 		} else {
 			set.add(entry);
 			map.put(Base64.encodeBase64String(entry.getValue().getGroup()), entry.getValue());
-		}		
+		}
 	}
 	
 	public void addAll(Collection<Entry<String,RawScanResult>> coll) {

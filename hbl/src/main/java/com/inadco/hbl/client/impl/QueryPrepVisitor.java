@@ -33,95 +33,101 @@ import com.inadco.hbl.client.HblException;
  */
 public class QueryPrepVisitor implements QueryVisitor {
 
-    private PreparedAggregateQueryImpl query;
-    private Deque<String[]>            selectExpr = new ArrayDeque<String[]>();
+	private PreparedAggregateQueryImpl query;
+	private Deque<String[]>            selectExpr = new ArrayDeque<String[]>();
 
-    public QueryPrepVisitor(PreparedAggregateQueryImpl query) {
-        super();
-        this.query = query;
-    }
-
-    @Override
-    public void reset() {
-        selectExpr.clear();
-    }
-
-    @Override
-    public void visitSelect(CommonTree selectionList,
-                            CommonTree fromClause,
-                            CommonTree whereClause,
-                            CommonTree groupClause) {
-        int i = 0;
-        for (String[] expr : selectExpr) {
-            if (expr.length == 2)
-                // id, alias
-                query.addAggregateResultDef(i++, expr[0], expr[1]);
-            else if (expr.length == 3) {
-                // alias,func,measure name
-                query.addMeasure(expr[2]);
-                query.addAggregateResultDef(i++, expr[0], expr[1], expr[2]);
-            }
-        }
-    }
-
-    @Override
-    public void visitGroupDimension(String dim) {
-        // DEBUG
-        // System.out.printf("Adding group dimension %s.\n", dim);
-
-        query.addGroupBy(dim);
-    }
-
-    @Override
-    public void visitSlice(String dimension, boolean leftOpen, Object left, boolean rightOpen, Object right) {
-
-        if (right == null)
-            // cause nothing else makes sense here
-            query.addClosedSlice(dimension, left, left);
-        else
-            query.addSlice(dimension, left, leftOpen, right, rightOpen);
-
-    }
-
-    @Override
-    public void visitSelectExpressionAsID(String id, String alias) {
-
-        selectExpr.add(new String[] { id, alias });
-        // query.addAggregateResultDef(selectExprIndex++, alias, id);
-
-    }
-
-    @Override
-    public void visitSelectExpressionAsAggrFunc(String func, String measure, String alias) {
-
-        /*
-         * can't do it here because cube expression is not set at that point.
-         */
-        selectExpr.add(new String[] { alias, func, measure });
-        // query.addMeasure(measure);
-        // query.addAggregateResultDef(selectExprIndex++, alias, func, measure);
-    }
-
-    @Override
-    public void visitCube(String cubeName) throws HblException {
-        query.setCube(cubeName);
-    }
-    
-    @Override
-	public void visitOrderBy(String dimension, String order) {
-    	order = order == null ? "asc" : order;
-    	query.addOrderBy(dimension,order.equalsIgnoreCase("asc"));
-    	
-    }
-    
-    @Override
-	public void visitOrderByMeasure(String func, String measure, String order) {
-    	order = order == null ? "asc" : order;
-    	query.addOrderByMeasure(func, measure,order.equalsIgnoreCase("asc"));
-		
+	public QueryPrepVisitor(PreparedAggregateQueryImpl query) {
+		super();
+		this.query = query;
 	}
 
-    @Override
+	@Override
+	public void reset() {
+		selectExpr.clear();
+	}
+
+	@Override
+	public void visitSelect(CommonTree selectionList,
+			CommonTree fromClause,
+			CommonTree whereClause,
+			CommonTree groupClause) {
+		int i = 0;
+		for (String[] expr : selectExpr) {
+			if (expr.length == 2)
+				// id, alias
+				query.addAggregateResultDef(i++, expr[0], expr[1]);
+			else if (expr.length == 3) {
+				// TODO: HACK
+				if(expr[1].equalsIgnoreCase("DCOUNT")) {
+					query.addDistinctCountRef(i++, expr[2], expr[0]);
+					//query.addDistinctCount(expr[2],expr[0]);
+				} else {
+					// alias,func,measure name
+					query.addMeasure(expr[2]);
+					query.addAggregateResultDef(i++, expr[0], expr[1], expr[2]);
+				}
+			}
+		}
+	}
+
+	@Override
+	public void visitGroupDimension(String dim) {
+		// DEBUG
+		// System.out.printf("Adding group dimension %s.\n", dim);
+
+		query.addGroupBy(dim);
+	}
+
+	@Override
+	public void visitSlice(String dimension, boolean leftOpen, Object left, boolean rightOpen, Object right) {
+
+		if (right == null)
+			// cause nothing else makes sense here
+			query.addClosedSlice(dimension, left, left);
+		else
+			query.addSlice(dimension, left, leftOpen, right, rightOpen);
+
+	}
+
+	@Override
+	public void visitSelectExpressionAsID(String id, String alias) {
+
+		selectExpr.add(new String[] { id, alias });
+		// query.addAggregateResultDef(selectExprIndex++, alias, id);
+
+	}
+
+	@Override
+	public void visitSelectExpressionAsAggrFunc(String func, String measure, String alias) {
+
+		/*
+		 * can't do it here because cube expression is not set at that point.
+		 */
+		selectExpr.add(new String[] { alias, func, measure });
+		// query.addMeasure(measure);
+		// query.addAggregateResultDef(selectExprIndex++, alias, func, measure);
+	}
+
+	@Override
+	public void visitCube(String cubeName) throws HblException {
+		query.setCube(cubeName);
+	}
+
+	@Override
+	public void visitOrderBy(String dimension, String order) {
+		order = order == null ? "asc" : order;
+		query.addOrderBy(dimension,order.equalsIgnoreCase("asc"));
+
+	}
+
+	@Override
+	public void visitOrderByMeasure(String func, String measure, String order) {
+		order = order == null ? "asc" : order;
+		query.addOrderByMeasure(func, measure,order.equalsIgnoreCase("asc"));
+
+	}
+
+	@Override
 	public void visitLimit(Object limit) {
 		query.addLimit(Integer.parseInt(limit+""));
 	}

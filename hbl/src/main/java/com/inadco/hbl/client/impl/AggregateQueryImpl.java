@@ -452,8 +452,24 @@ public class AggregateQueryImpl implements AggregateQuery {
 				continue;
 
 			// found qualifying cuboid. good.
-			if (cuboid == null || cPath.size() < cuboid.getCuboidPath().size())
-				cuboid = c;
+			if (cuboid == null || cPath.size() < cuboid.getCuboidPath().size()) {
+				if(distinctDimension != null) {
+				    boolean foundDC = false;
+				    boolean success = true;
+				    for(Dimension d : c.getCuboidDimensions()) {
+				        if(foundDC) {
+				            success = success ? !dimensionSubset.contains(d.getName()) : false;
+				        } else if(d.getName().equals(distinctDimension)) {
+				            foundDC = true;
+				        }
+				    }
+				    if(success) {
+				        cuboid = c;
+				    }
+				} else {
+				    cuboid = c;
+				}
+			}
 		}
 
 		return cuboid;
@@ -481,7 +497,7 @@ public class AggregateQueryImpl implements AggregateQuery {
 
 	@Override
 	public AggregateQuery addOrderByMeasure(String function, String measureName, boolean ascending) {
-		if(function.equalsIgnoreCase("distinct")) {
+		if(function.equalsIgnoreCase("DCOUNT")) {
 			RawScanResultMeasureComparator obm = new RawScanResultMeasureComparator(ascending);
 			comparator.add(obm);
 		} else {
@@ -506,9 +522,10 @@ public class AggregateQueryImpl implements AggregateQuery {
 	}
 
 	@Override
-	public AggregateQuery addDistinctCount(String _dimension) {
+	public AggregateQuery addDistinctCount(String _dimension, String alias) {
 		distinctDimension = _dimension;
 		groupDimensions.add(_dimension);
+		
 		return this;
 	}
 
