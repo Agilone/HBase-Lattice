@@ -87,7 +87,7 @@ public class RawScanResultTree implements Writable {
 	public Entry<byte[],RawScanResult> popLast() {
 		try {
 			Entry<byte[],RawScanResult> last = set.pollLast();
-			map.remove(last.getKey());
+			map.remove(Base64.encodeBase64String(last.getKey()));
 			return last;
 		} catch(Exception e) {
 			
@@ -98,7 +98,7 @@ public class RawScanResultTree implements Writable {
 	public Entry<byte[],RawScanResult> popFirst() {
 		try {
 			Entry<byte[],RawScanResult> last = set.pollFirst();
-			map.remove(last.getKey());
+			map.remove(Base64.encodeBase64String(last.getKey()));
 			return last;
 		} catch(Exception e) {
 			
@@ -146,7 +146,7 @@ public class RawScanResultTree implements Writable {
 			in.readFully(key);
 			RawScanResult r = new RawScanResult();
 			r.readFields(in);
-			Entry<byte[],RawScanResult> e = new SimpleEntry<byte[],RawScanResult>(key,r);
+			Entry<byte[],RawScanResult> e = new SimpleEntry<byte[],RawScanResult>(Base64.decodeBase64(new String(key)),r);
 			add(e);
 		}
 	}	
