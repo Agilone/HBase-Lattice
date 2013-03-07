@@ -129,7 +129,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 						holder.mergeMeasuresSubgroups(prev_holder, sim, SliceOperation.ADD);
 					} else {
 						Entry<byte[],RawScanResult> dlowest = null;
-						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,prev_holder);
+						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,holder);
 
 						dlowest = tree.last();
 
