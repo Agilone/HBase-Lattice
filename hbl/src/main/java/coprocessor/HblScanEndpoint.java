@@ -76,7 +76,8 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 		Result r;
 		RawScanResult holder = null;
 		RawScanResult prev_holder = null;
-
+		byte[] prev_row = null;
+		
 		Entry<byte[],RawScanResult> firstRawResult = null;
 		Entry<byte[],RawScanResult> lastRawResult = null;
 
@@ -129,7 +130,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 						holder.mergeMeasuresSubgroups(prev_holder, sim, SliceOperation.ADD);
 					} else {
 						Entry<byte[],RawScanResult> dlowest = null;
-						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(row,holder);
+						Entry<byte[],RawScanResult> current = new SimpleEntry<byte[],RawScanResult>(prev_row.clone(),prev_holder);
 
 						dlowest = tree.last();
 
@@ -147,6 +148,7 @@ public class HblScanEndpoint extends BaseEndpointCoprocessor implements HblScanP
 				}
 
 				prev_holder = holder;
+				prev_row = row;
 				holder = new RawScanResult(groupKeyLen,measureQualifiers.length, SliceOperation.ADD, keyOffset);
 
 			} while (done);
