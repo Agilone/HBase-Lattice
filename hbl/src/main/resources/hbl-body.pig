@@ -22,9 +22,9 @@
 -- cuboid key evaluation produces a bag of possible cuboid keys (all of the same length). 
 -- multiple keys are produced if there are hierarchies, to produce [ALL] keys.
 
-GROUP_$hbl:{cuboidTable} = FOREACH HBLEVAL generate $hbl:{measuresEval},  FLATTEN($hbl:{cuboidKeyEval}) as HKEY ;
+GROUP_$hbl:{cuboidTable} = FOREACH HBLEVAL generate $hbl:{measuresEval},  FLATTEN($hbl:{cuboidKeyEval}.dimkey) as HKEY ;
 
-GR_$hbl:{cuboidTable}_10 = GROUP GROUP_$hbl:{cuboidTable} by HKEY.dimkey parallel $hbl:{parallel};
+GR_$hbl:{cuboidTable}_10 = GROUP GROUP_$hbl:{cuboidTable} by HKEY parallel $hbl:{parallel};
 
 GR_$hbl:{cuboidTable} = foreach GR_$hbl:{cuboidTable}_10 generate *;
 
@@ -32,7 +32,7 @@ GR_$hbl:{cuboidTable} = foreach GR_$hbl:{cuboidTable}_10 generate *;
 -- such as TO_TUPLE(SUM(GR_table.measure1),COUNT(GR_table.measure1)) as measure1:(sum:double,count:double)
 -- also hbase-get parts
 M_$hbl:{cuboidTable}_10 = foreach GR_$hbl:{cuboidTable} generate group as HKEY, $hbl:{measureMetricEvals}, 
-  get_$hbl:{cuboidTable}() as hbl_old;
+  get_$hbl:{cuboidTable}(group) as hbl_old;
 
 M_$hbl:{cuboidTable}_20 = foreach M_$hbl:{cuboidTable}_10 generate HKEY, $hbl:{measureMetricMerges};
 

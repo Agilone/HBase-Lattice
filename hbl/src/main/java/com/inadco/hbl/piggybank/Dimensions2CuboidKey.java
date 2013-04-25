@@ -102,7 +102,7 @@ public class Dimensions2CuboidKey extends BaseFunc<DataBag> {
             for (int i = 0; i < depth; i++) {
                 h.getKey(member, i, keyHolder, keyOffset);
                 if (dimensions.size() == dimensionIndex + 1) {
-                    holder.add(tf.newTuple(tf.newTuple(new DataByteArray(keyHolder))));
+                    holder.add(tf.newTuple(new DataByteArray(keyHolder)));
                     keyHolder = keyHolder.clone();
                 } else
                     walkDimensions(input,

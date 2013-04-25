@@ -194,6 +194,7 @@ public class AggregationFromMeasureBag extends EvalFunc<DataByteArray> implement
         protected boolean                   nonDegenerate;
         protected AggregateFunctionRegistry afr;
         protected boolean                   combine;
+        protected TupleFactory tf = TupleFactory.getInstance();
 
         public Initial() {
             super();
@@ -217,8 +218,7 @@ public class AggregationFromMeasureBag extends EvalFunc<DataByteArray> implement
 
         @Override
         public Tuple getValue() {
-            return nonDegenerate ? TupleFactory.getInstance().newTuple(new DataByteArray(accumulator.build()
-                .toByteArray())) : null;
+            return nonDegenerate ? tf.newTuple(new DataByteArray(accumulator.build().toByteArray())) : tf.newTuple(1);
         }
 
         @Override
@@ -238,6 +238,12 @@ public class AggregationFromMeasureBag extends EvalFunc<DataByteArray> implement
     }
 
     public static class Intermediate extends Initial {
+    	public Intermediate() {
+    	}
+
+    	public Intermediate(String measureName, String combine, String encodedModel) {
+    		super(measureName, combine, encodedModel);
+    	}
 
         @Override
         public void accumulate(Tuple b) throws IOException {
@@ -256,7 +262,7 @@ public class AggregationFromMeasureBag extends EvalFunc<DataByteArray> implement
             super();
         }
 
-        public Final(String measureName, String encodedModel) {
+        public Final(String measureName, String combine, String encodedModel) {
             super(encodedModel);
             this.measureName = measureName;
             this.afr = super.cube.getAggregateFunctionRegistry();

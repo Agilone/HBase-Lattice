@@ -303,7 +303,7 @@ public class Pig8CubeIncrementalCompilerBean {
 
             // substitute all at once
             compilerSrc = preprocess(compilerSrc, substitutes);
-            return compilerSrc.replaceAll("HKEY.dimkey", "HKEY");
+            return compilerSrc;
 
         } finally {
             IOUtil.closeAll(closeables);
